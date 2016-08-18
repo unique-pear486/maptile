@@ -1,4 +1,5 @@
 #!//usr/bin/env python
+import argparse
 import os
 from PIL import Image
 
@@ -23,7 +24,7 @@ def tile_map(mapname, overlayname, min_level, max_level):
     overlay = None
 
     # for each zoom level
-    for l in range(min_level, max_level+1):
+    for l in range(min_level, max_level):
         # Check if we have a background map_ or overlay for this zoom level, if
         # not we use the one from the last level
         if os.path.isfile("{0}_{1}.png".format(mapname, l)):
@@ -36,7 +37,7 @@ def tile_map(mapname, overlayname, min_level, max_level):
 
         # create the overall image and scale it to the final size
         out = Image.alpha_composite(map_, overlay)
-        out.thumbnail((256 * (2**l), 256 * (2**l)))
+        out = out.resize((256 * (2**l), 256 * (2**l)), Image.ANTIALIAS)
 
         # Save each of the tiles
         for x in range(0, 2**l):
@@ -47,9 +48,25 @@ def tile_map(mapname, overlayname, min_level, max_level):
                 except OSError as e:
                     if e.errno != 17:
                         raise
-                out.crop((x * 256, y * 256, (x+1) * 256, (y+1) * 256)).save(
-                    "{0}/{1}/{2}.png".format(l, x, y))
+                (out
+                    .crop((x * 256, y * 256, (x+1) * 256, (y+1) * 256))
+                    .save("{0}/{1}/{2}.png".format(l, x, y), optimize=True))
 
 
 if __name__ == "__main__":
-    tile_map("map", "overlay", 0, 2)
+    parser = argparse.ArgumentParser(
+        description="Split a map (with overlay) into tiles")
+    parser.add_argument("map_prefix",
+                        help="The map file prefix i.e. prefix_0.png")
+    parser.add_argument("overlay_prefix",
+                        help="The overly file prefix i.e. prefix_0.png")
+    parser.add_argument("min_zoom",
+                        help="The minimum zoom level. Map and overlay must "
+                        "exist at this level",
+                        type=int)
+    parser.add_argument("max_zoom",
+                        help="The maximum zoom level",
+                        type=int)
+    args = parser.parse_args()
+    tile_map(args.map_prefix, args.overlay_prefix,
+             args.min_zoom, args.max_zoom)
